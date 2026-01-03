@@ -31,18 +31,19 @@
     border-radius: 6px;
     overflow: hidden;
     margin: 20px 0;
+    box-shadow: inset 0 0 5px #000;
   }
 
   .bar {
     height: 100%;
     width: 0%;
     background: linear-gradient(90deg, #00ff99, #00cc66);
-    transition: width 0.1s;
+    transition: width 0.2s, background 0.2s;
   }
 
-  .key { font-size: 48px; margin-top: 20px; }
+  .key { font-size: 48px; margin-top: 20px; transition: color 0.2s; }
   .hint { font-size: 14px; opacity: 0.7; margin-top: 10px; }
-  .message { font-size: 18px; margin-top: 15px; color: #ff5555; }
+  .message { font-size: 18px; margin-top: 15px; color: #ff5555; transition: color 0.2s; }
 
   .restart-btn {
     margin-top: 30px;
@@ -72,64 +73,89 @@
 </div>
 
 <script>
-  // Keys
-  const simpleKeys = [{ key: "a", label: "A" }, { key: "d", label: "D" }];
-  const hardKeys = [
-    { key: "w", label: "W" }, { key: "s", label: "S" },
-    { key: "ArrowUp", label: "↑" }, { key: "ArrowDown", label: "↓" },
-    { key: "ArrowLeft", label: "←" }, { key: "ArrowRight", label: "→" }
-  ];
+const simpleKeys = [{ key: "a", label: "A" }, { key: "d", label: "D" }];
+const hardKeys = [
+  { key: "w", label: "W" }, { key: "s", label: "S" },
+  { key: "ArrowUp", label: "↑" }, { key: "ArrowDown", label: "↓" },
+  { key: "ArrowLeft", label: "←" }, { key: "ArrowRight", label: "→" }
+];
 
-  let sequence = [], index = 0, progress = 0;
+let sequence = [], index = 0, progress = 0;
 
-  const bar = document.getElementById("bar");
-  const keyDisplay = document.getElementById("key");
-  const message = document.getElementById("message");
-  const restartBtn = document.getElementById("restart");
+const bar = document.getElementById("bar");
+const keyDisplay = document.getElementById("key");
+const message = document.getElementById("message");
+const restartBtn = document.getElementById("restart");
 
-  // Generate patterned sequence
-  function generateSequence() {
-    sequence = [];
-    for (let i = 0; i < 10; i++) sequence.push(simpleKeys[i % 2]);
-    sequence.push(hardKeys[0], hardKeys[1], hardKeys[2]); // harder keys at end
-    index = 0;
-    progress = 0;
-    bar.style.width = "0%";
-    message.textContent = "";
+// Generate patterned sequence
+function generateSequence() {
+  sequence = [];
+  for (let i = 0; i < 10; i++) sequence.push(simpleKeys[i % 2]);
+  sequence.push(hardKeys[0], hardKeys[1], hardKeys[2]); // add harder keys
+  index = 0;
+  progress = 0;
+  bar.style.width = "0%";
+  bar.style.background = "linear-gradient(90deg, #00ff99, #00cc66)";
+  message.textContent = "";
+  keyDisplay.style.color = "#fff";
+  displayKey();
+}
+
+// Display current key
+function displayKey() {
+  if (index < sequence.length) {
+    keyDisplay.textContent = sequence[index].label;
+  } else {
+    keyDisplay.textContent = "✅ CRATE OPENED";
+    bar.style.width = "100%";
+  }
+}
+
+// Flash bar color
+function flashBar(color) {
+  bar.style.background = color;
+  setTimeout(() => { bar.style.background = "linear-gradient(90deg, #00ff99, #00cc66)"; }, 200);
+}
+
+// Flash key display
+function flashKey(color) {
+  keyDisplay.style.color = color;
+  setTimeout(() => { keyDisplay.style.color = "#fff"; }, 200);
+}
+
+// Handle key press
+document.addEventListener("keydown", (e) => {
+  if (index >= sequence.length) return;
+  const current = sequence[index];
+
+  if (e.key === current.key) {
+    progress += 5;
+    bar.style.width = Math.min(progress, 100) + "%";
+    flashKey("#00ff99");
+    index++;
     displayKey();
-  }
+  } else {
+    progress -= 6;
+    if (progress < 0) progress = 0;
+    bar.style.width = progress + "%";
+    message.textContent = "❌ Mistake!";
+    flashBar("#ff5555");
+    flashKey("#ff5555");
+    setTimeout(() => { message.textContent = ""; }, 800);
 
-  function displayKey() {
-    if (index < sequence.length) {
-      keyDisplay.textContent = sequence[index].label;
-    } else {
-      keyDisplay.textContent = "✅ CRATE OPENED";
+    if (Math.random() < 0.15) {
+      message.textContent = "🚓 Police Alert!";
+      flashBar("#ffff00");
+      setTimeout(() => { message.textContent = ""; }, 1000);
     }
   }
+});
 
-  document.addEventListener("keydown", (e) => {
-    if (index >= sequence.length) return;
-    const current = sequence[index];
-    if (e.key === current.key) {
-      progress += 5;
-      bar.style.width = Math.min(progress, 100) + "%";
-      index++;
-      displayKey();
-    } else {
-      progress -= 6;
-      if (progress < 0) progress = 0;
-      bar.style.width = progress + "%";
-      message.textContent = "❌ Mistake!";
-      setTimeout(()=>{message.textContent = "";}, 800);
-      if (Math.random() < 0.15) {
-        message.textContent = "🚓 Police Alert!";
-        setTimeout(()=>{message.textContent = "";}, 1000);
-      }
-    }
-  });
-
-  restartBtn.addEventListener("click", generateSequence);
+// Restart button
+restartBtn.addEventListener("click", generateSequence);
 </script>
 
 </body>
 </html>
+
+

@@ -4,16 +4,16 @@
 <meta charset="UTF-8">
 <title>HighLife Crate Mini-Game</title>
 <style>
-  body { background:#111; color:white; font-family:Arial; text-align:center; padding-top:60px; }
-  .container { width:500px; margin:auto; border:2px solid #00ff99; border-radius:12px; padding:20px; background:#1a1a1a; box-shadow:0 0 20px #00ff99; }
-  h2 { color:#00ff99; }
-  .bar-bg { width:100%; height:30px; background:#222; border-radius:6px; overflow:hidden; margin:20px 0; box-shadow: inset 0 0 5px #000; }
-  .bar { height:100%; width:0%; background:linear-gradient(90deg,#00ff99,#00cc66); transition:width 0.2s,background 0.2s; }
-  .key { font-size:48px; margin-top:20px; transition:color 0.2s; }
-  .hint { font-size:14px; opacity:0.7; margin-top:10px; }
-  .message { font-size:18px; margin-top:15px; color:#ff5555; transition:color 0.2s; }
-  .restart-btn { margin-top:30px; padding:12px 25px; font-size:18px; background:#222; color:#00ff99; border:1px solid #00ff99; border-radius:8px; cursor:pointer; }
-  .restart-btn:hover { background:#00ff99; color:#111; }
+body { background:#111; color:white; font-family:Arial; text-align:center; margin:0; padding:0; overflow:hidden; }
+.container { position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); width:600px; border:2px solid #00ff99; border-radius:12px; padding:30px; background:#1a1a1a; box-shadow:0 0 25px #00ff99; }
+h2 { color:#00ff99; margin:0; }
+.bar-bg { width:100%; height:30px; background:#222; border-radius:6px; overflow:hidden; margin-top:25px; box-shadow: inset 0 0 5px #000; }
+.bar { height:100%; width:0%; background:linear-gradient(90deg,#00ff99,#00cc66); transition: width 0.1s, background 0.1s; }
+.key { font-size:60px; margin-top:30px; transition: color 0.1s, transform 0.1s; }
+.message { font-size:20px; margin-top:15px; color:#ff5555; transition:color 0.1s; }
+.restart-btn { margin-top:25px; padding:12px 25px; font-size:18px; background:#222; color:#00ff99; border:1px solid #00ff99; border-radius:8px; cursor:pointer; }
+.restart-btn:hover { background:#00ff99; color:#111; }
+#policeAlert { position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(255,0,0,0.5); display:none; z-index:9999; }
 </style>
 </head>
 <body>
@@ -21,21 +21,34 @@
 <div class="container">
   <h2>📦 Commercial Crate</h2>
   <div class="bar-bg"><div class="bar" id="bar"></div></div>
-  <div class="key" id="key">Press any key to start</div>
-  <div class="hint">W A S D & Arrow Keys</div>
+  <div class="key" id="key">Press a key</div>
   <div class="message" id="message"></div>
   <button class="restart-btn" id="restart">Restart</button>
 </div>
 
-<script>
-const keys = [
-  { key:"a", label:"A" }, { key:"d", label:"D" },
-  { key:"w", label:"W" }, { key:"s", label:"S" },
-  { key:"ArrowUp", label:"↑" }, { key:"ArrowDown", label:"↓" },
-  { key:"ArrowLeft", label:"←" }, { key:"ArrowRight", label:"→" }
-];
+<div id="policeAlert"></div>
 
-let sequence = [];
+<script>
+// Allowed back-and-forth buttons table
+const allowedPairs = {
+  "w":["s","a","d","ArrowUp","ArrowDown","ArrowLeft","ArrowRight"],
+  "s":["w","a","d","ArrowUp","ArrowDown","ArrowLeft","ArrowRight"],
+  "a":["w","s","d","ArrowUp","ArrowDown","ArrowLeft","ArrowRight"],
+  "d":["w","s","a","ArrowUp","ArrowDown","ArrowLeft","ArrowRight"],
+  "ArrowUp":["w","s","a","d","ArrowDown","ArrowLeft","ArrowRight"],
+  "ArrowDown":["w","s","a","d","ArrowUp","ArrowLeft","ArrowRight"],
+  "ArrowLeft":["w","s","a","d","ArrowUp","ArrowDown","ArrowRight"],
+  "ArrowRight":["w","s","a","d","ArrowUp","ArrowDown","ArrowLeft"]
+};
+
+const keyLabels = { w:"W", a:"A", s:"S", d:"D", ArrowUp:"↑", ArrowDown:"↓", ArrowLeft:"←", ArrowRight:"→" };
+
+// Settings
+const totalSequences = 10;
+const pressesPerSequence = 20;
+
+let sequences = []; // stores full sequences
+let currentSequenceIndex = 0;
 let playerIndex = 0;
 let progress = 0;
 
@@ -43,69 +56,89 @@ const bar = document.getElementById("bar");
 const keyDisplay = document.getElementById("key");
 const message = document.getElementById("message");
 const restartBtn = document.getElementById("restart");
+const policeOverlay = document.getElementById("policeAlert");
 
-// Start / restart the game
-function startGame() {
-  sequence = [];
+// Generate sequences with alternating back-and-forth buttons
+function generateSequences(){
+  sequences = [];
+  const buttons = Object.keys(allowedPairs);
+  for(let i=0;i<totalSequences;i++){
+    // Pick first button randomly
+    let first = buttons[Math.floor(Math.random()*buttons.length)];
+    // Pick second from allowedPairs[first]
+    let second = allowedPairs[first][Math.floor(Math.random()*allowedPairs[first].length)];
+    let seq = [];
+    for(let j=0;j<pressesPerSequence;j++){
+      seq.push(j%2===0 ? first : second); // alternate back and forth
+    }
+    sequences.push(seq);
+  }
+  currentSequenceIndex = 0;
   playerIndex = 0;
   progress = 0;
   bar.style.width = "0%";
-  keyDisplay.style.color = "#fff";
-  message.textContent = "";
-  addNewKey();
+  updateKeyDisplay();
 }
 
-// Add a new random key to the sequence
-function addNewKey() {
-  const newKey = keys[Math.floor(Math.random() * keys.length)];
-  sequence.push(newKey);
-  playerIndex = 0;
-  displayKey();
-}
-
-// Display current key to press
-function displayKey() {
-  if(playerIndex < sequence.length) {
-    keyDisplay.textContent = sequence[playerIndex].label;
+// Update key display
+function updateKeyDisplay(){
+  if(currentSequenceIndex < sequences.length){
+    keyDisplay.textContent = keyLabels[sequences[currentSequenceIndex][playerIndex]];
   } else {
-    keyDisplay.textContent = "✅ Sequence Completed!";
-    progress += (100 / 20); // slowly fill bar
-    if(progress > 100) progress = 100;
-    bar.style.width = progress + "%";
-    setTimeout(addNewKey, 500); // add next key after small delay
+    keyDisplay.textContent = "✅ All Sequences Completed!";
   }
 }
 
-// Flash bar color
-function flashBar(color){ bar.style.background=color; setTimeout(()=>{bar.style.background="linear-gradient(90deg,#00ff99,#00cc66)";},200);}
-function flashKey(color){ keyDisplay.style.color=color; setTimeout(()=>{keyDisplay.style.color="#fff";},200);}
+// Flash effects
+function flashBar(color){ bar.style.background=color; setTimeout(()=>{bar.style.background="linear-gradient(90deg,#00ff99,#00cc66)"; },100);}
+function flashKey(color){ keyDisplay.style.color=color; keyDisplay.style.transform="scale(1.2)"; setTimeout(()=>{ keyDisplay.style.color="#fff"; keyDisplay.style.transform="scale(1)"; },100);}
+function showPoliceAlert(){ policeOverlay.style.display="block"; setTimeout(()=>{ policeOverlay.style.display="none"; },800);}
 
-// Handle player key press
+// Handle key press
 document.addEventListener("keydown", e=>{
-  if(sequence.length === 0) return;
-  const current = sequence[playerIndex];
-  if(e.key === current.key){
-    playerIndex++;
+  if(currentSequenceIndex >= sequences.length) return;
+  const currentSeq = sequences[currentSequenceIndex];
+  const currentKey = currentSeq[playerIndex];
+
+  if(e.key === currentKey){
     flashKey("#00ff99");
-    displayKey();
+    playerIndex++;
+    progress += (100 / (totalSequences * pressesPerSequence)) * 0.7;
+    if(progress>100) progress=100;
+    bar.style.width = progress + "%";
+
+    if(playerIndex >= currentSeq.length){
+      // move to next sequence
+      currentSequenceIndex++;
+      playerIndex = 0;
+      if(currentSequenceIndex < sequences.length){
+        updateKeyDisplay();
+      } else {
+        keyDisplay.textContent = "✅ All Sequences Completed!";
+      }
+    } else {
+      updateKeyDisplay();
+    }
   } else {
+    // Mistake
+    progress -= (100 / (totalSequences * pressesPerSequence)) * 1.2;
+    if(progress<0) progress=0;
+    bar.style.width = progress + "%";
     flashBar("#ff5555");
     flashKey("#ff5555");
-    message.textContent = "❌ Mistake!";
-    progress -= 2; if(progress<0) progress=0;
-    bar.style.width = progress + "%";
-    setTimeout(()=>{message.textContent="";},800);
-    if(Math.random() < 0.15){
-      message.textContent = "🚓 Police Alert!";
-      flashBar("#ffff00");
-      setTimeout(()=>{message.textContent="";},1000);
-    }
+    message.textContent="❌ Mistake!";
+    setTimeout(()=>{message.textContent="";},500);
+    if(Math.random()<0.15){ showPoliceAlert(); message.textContent="🚓 Police Alert!"; setTimeout(()=>{message.textContent="";},800);}
   }
 });
 
-// Restart button
-restartBtn.addEventListener("click", startGame);
-</script>
+// Restart
+restartBtn.addEventListener("click", generateSequences);
 
+// Initialize
+generateSequences();
+</script>
 </body>
 </html>
+
+

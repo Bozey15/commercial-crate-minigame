@@ -10,7 +10,7 @@ h2 { color:#00ff99; margin:0; }
 .bar-bg { width:100%; height:30px; background:#222; border-radius:6px; overflow:hidden; margin-top:25px; box-shadow: inset 0 0 5px #000; }
 .bar { height:100%; width:0%; background:linear-gradient(90deg,#00ff99,#00cc66); transition: width 0.1s, background 0.1s; }
 .key { font-size:60px; margin-top:30px; transition: color 0.1s, transform 0.1s; }
-.message { font-size:20px; margin-top:15px; color:#ff5555; transition:color 0.1s; }
+.message { font-size:20px; margin-top:15px; color:#ff5555; }
 .restart-btn { margin-top:25px; padding:12px 25px; font-size:18px; background:#222; color:#00ff99; border:1px solid #00ff99; border-radius:8px; cursor:pointer; }
 .restart-btn:hover { background:#00ff99; color:#111; }
 #policeAlert { position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(255,0,0,0.5); display:none; z-index:9999; }
@@ -29,28 +29,28 @@ h2 { color:#00ff99; margin:0; }
 <div id="policeAlert"></div>
 
 <script>
-// Allowed back-and-forth buttons table
+// Allowed back-and-forth table
 const allowedPairs = {
-  "w":["s","a","d","ArrowUp","ArrowDown","ArrowLeft","ArrowRight"],
-  "s":["w","a","d","ArrowUp","ArrowDown","ArrowLeft","ArrowRight"],
-  "a":["w","s","d","ArrowUp","ArrowDown","ArrowLeft","ArrowRight"],
-  "d":["w","s","a","ArrowUp","ArrowDown","ArrowLeft","ArrowRight"],
-  "ArrowUp":["w","s","a","d","ArrowDown","ArrowLeft","ArrowRight"],
-  "ArrowDown":["w","s","a","d","ArrowUp","ArrowLeft","ArrowRight"],
-  "ArrowLeft":["w","s","a","d","ArrowUp","ArrowDown","ArrowRight"],
-  "ArrowRight":["w","s","a","d","ArrowUp","ArrowDown","ArrowLeft"]
+  w:["s","a","d","ArrowUp","ArrowDown","ArrowLeft","ArrowRight"],
+  s:["w","a","d","ArrowUp","ArrowDown","ArrowLeft","ArrowRight"],
+  a:["w","s","d","ArrowUp","ArrowDown","ArrowLeft","ArrowRight"],
+  d:["w","s","a","ArrowUp","ArrowDown","ArrowLeft","ArrowRight"],
+  ArrowUp:["w","s","a","d","ArrowDown","ArrowLeft","ArrowRight"],
+  ArrowDown:["w","s","a","d","ArrowUp","ArrowLeft","ArrowRight"],
+  ArrowLeft:["w","s","a","d","ArrowUp","ArrowDown","ArrowRight"],
+  ArrowRight:["w","s","a","d","ArrowUp","ArrowDown","ArrowLeft"]
 };
 
 const keyLabels = { w:"W", a:"A", s:"S", d:"D", ArrowUp:"↑", ArrowDown:"↓", ArrowLeft:"←", ArrowRight:"→" };
 
-// Settings
 const totalSequences = 10;
 const pressesPerSequence = 20;
 
-let sequences = []; // stores full sequences
+let sequences = [];
 let currentSequenceIndex = 0;
 let playerIndex = 0;
 let progress = 0;
+let lastInputTime = Date.now();
 
 const bar = document.getElementById("bar");
 const keyDisplay = document.getElementById("key");
@@ -58,21 +58,21 @@ const message = document.getElementById("message");
 const restartBtn = document.getElementById("restart");
 const policeOverlay = document.getElementById("policeAlert");
 
-// Generate sequences with alternating back-and-forth buttons
+// Generate sequences
 function generateSequences(){
   sequences = [];
   const buttons = Object.keys(allowedPairs);
+
   for(let i=0;i<totalSequences;i++){
-    // Pick first button randomly
-    let first = buttons[Math.floor(Math.random()*buttons.length)];
-    // Pick second from allowedPairs[first]
-    let second = allowedPairs[first][Math.floor(Math.random()*allowedPairs[first].length)];
+    const first = buttons[Math.floor(Math.random()*buttons.length)];
+    const second = allowedPairs[first][Math.floor(Math.random()*allowedPairs[first].length)];
     let seq = [];
     for(let j=0;j<pressesPerSequence;j++){
-      seq.push(j%2===0 ? first : second); // alternate back and forth
+      seq.push(j % 2 === 0 ? first : second);
     }
     sequences.push(seq);
   }
+
   currentSequenceIndex = 0;
   playerIndex = 0;
   progress = 0;
@@ -80,65 +80,71 @@ function generateSequences(){
   updateKeyDisplay();
 }
 
-// Update key display
+// Update display
 function updateKeyDisplay(){
   if(currentSequenceIndex < sequences.length){
     keyDisplay.textContent = keyLabels[sequences[currentSequenceIndex][playerIndex]];
   } else {
-    keyDisplay.textContent = "✅ All Sequences Completed!";
+    keyDisplay.textContent = "✅ Crate Opened";
   }
 }
 
-// Flash effects
-function flashBar(color){ bar.style.background=color; setTimeout(()=>{bar.style.background="linear-gradient(90deg,#00ff99,#00cc66)"; },100);}
-function flashKey(color){ keyDisplay.style.color=color; keyDisplay.style.transform="scale(1.2)"; setTimeout(()=>{ keyDisplay.style.color="#fff"; keyDisplay.style.transform="scale(1)"; },100);}
-function showPoliceAlert(){ policeOverlay.style.display="block"; setTimeout(()=>{ policeOverlay.style.display="none"; },800);}
+// Effects
+function flashKey(color){
+  keyDisplay.style.color = color;
+  keyDisplay.style.transform = "scale(1.2)";
+  setTimeout(()=>{ keyDisplay.style.color="#fff"; keyDisplay.style.transform="scale(1)"; },100);
+}
+function showPoliceAlert(){
+  policeOverlay.style.display="block";
+  setTimeout(()=>{ policeOverlay.style.display="none"; },800);
+}
 
-// Handle key press
+// Key input
 document.addEventListener("keydown", e=>{
   if(currentSequenceIndex >= sequences.length) return;
-  const currentSeq = sequences[currentSequenceIndex];
-  const currentKey = currentSeq[playerIndex];
 
-  if(e.key === currentKey){
+  lastInputTime = Date.now();
+
+  const expected = sequences[currentSequenceIndex][playerIndex];
+
+  if(e.key === expected){
     flashKey("#00ff99");
     playerIndex++;
     progress += (100 / (totalSequences * pressesPerSequence)) * 0.7;
-    if(progress>100) progress=100;
+    if(progress > 100) progress = 100;
     bar.style.width = progress + "%";
 
-    if(playerIndex >= currentSeq.length){
-      // move to next sequence
+    if(playerIndex >= pressesPerSequence){
       currentSequenceIndex++;
       playerIndex = 0;
-      if(currentSequenceIndex < sequences.length){
-        updateKeyDisplay();
-      } else {
-        keyDisplay.textContent = "✅ All Sequences Completed!";
-      }
-    } else {
-      updateKeyDisplay();
     }
+    updateKeyDisplay();
   } else {
-    // Mistake
-    progress -= (100 / (totalSequences * pressesPerSequence)) * 1.2;
-    if(progress<0) progress=0;
+    progress -= (100 / (totalSequences * pressesPerSequence)) * 1.5;
+    if(progress < 0) progress = 0;
     bar.style.width = progress + "%";
-    flashBar("#ff5555");
     flashKey("#ff5555");
-    message.textContent="❌ Mistake!";
-    setTimeout(()=>{message.textContent="";},500);
-    if(Math.random()<0.15){ showPoliceAlert(); message.textContent="🚓 Police Alert!"; setTimeout(()=>{message.textContent="";},800);}
+    if(Math.random() < 0.15) showPoliceAlert();
   }
 });
+
+// 🩸 Idle drain (THIS IS THE IMPORTANT PART)
+setInterval(()=>{
+  const idleTime = Date.now() - lastInputTime;
+
+  if(idleTime > 700 && progress > 0){ // delay before draining
+    progress -= 0.15;                // slow drain
+    if(progress < 0) progress = 0;
+    bar.style.width = progress + "%";
+  }
+}, 50);
 
 // Restart
 restartBtn.addEventListener("click", generateSequences);
 
-// Initialize
+// Init
 generateSequences();
 </script>
 </body>
 </html>
-
-
